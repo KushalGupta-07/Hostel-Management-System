@@ -1,0 +1,519 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Student Profile: {{ student.full_name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{{ url_for('students_list') }}" class="btn btn-outline-secondary btn-sm rounded-pill mb-2">
+        <i class="fa-solid fa-arrow-left me-1"></i> Back to Student Directory
+    </a>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="d-flex align-items-center gap-3">
+            <div class="stat-icon primary fs-3 rounded-circle" style="width: 60px; height: 60px;">
+                <i class="fa-solid fa-user-graduate"></i>
+            </div>
+            <div>
+                <h3 class="fw-bold mb-0 text-dark">{{ student.full_name }}</h3>
+                <div class="small text-muted">
+                    <span class="font-monospace fw-bold">{{ student.student_id_code }}</span> &bull; 
+                    Joined on {{ student.check_in_date | format_date }}
+                </div>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#editStudentModal">
+                <i class="fa-solid fa-user-pen me-1"></i> Edit Profile
+            </button>
+            {% if student.status == 'Active' %}
+                <button class="btn btn-outline-danger btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#checkoutModal">
+                    <i class="fa-solid fa-right-from-bracket me-1"></i> Check-Out Resident
+                </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Left Column: Personal & Room Info -->
+    <div class="col-lg-4">
+        <!-- Personal Details Card -->
+        <div class="hms-card p-4 mb-4">
+            <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                <i class="fa-regular fa-id-card text-primary me-2"></i>Personal Details
+            </h6>
+            <div class="mb-2">
+                <small class="text-muted d-block">Contact Phone</small>
+                <span class="fw-semibold">{{ student.phone }}</span>
+            </div>
+            <div class="mb-2">
+                <small class="text-muted d-block">Email Address</small>
+                <span class="fw-semibold">{{ student.email or '-' }}</span>
+            </div>
+            <div class="row g-2 mb-2">
+                <div class="col-6">
+                    <small class="text-muted d-block">Gender</small>
+                    <span class="fw-semibold">{{ student.gender }}</span>
+                </div>
+                <div class="col-6">
+                    <small class="text-muted d-block">Blood Group</small>
+                    <span class="fw-semibold text-danger">{{ student.blood_group or '-' }}</span>
+                </div>
+            </div>
+            <div class="mb-2">
+                <small class="text-muted d-block">Date of Birth</small>
+                <span class="fw-semibold">{{ student.dob | format_date }}</span>
+            </div>
+            <div class="mb-2">
+                <small class="text-muted d-block">Permanent Address</small>
+                <p class="small text-muted mb-0">{{ student.address or '-' }}</p>
+            </div>
+        </div>
+
+        <!-- Guardian Info Card -->
+        <div class="hms-card p-4 mb-4">
+            <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                <i class="fa-solid fa-shield-halved text-success me-2"></i>Guardian & Emergency
+            </h6>
+            <div class="mb-2">
+                <small class="text-muted d-block">Guardian Name</small>
+                <span class="fw-semibold">{{ student.guardian_name or '-' }}</span>
+            </div>
+            <div class="mb-2">
+                <small class="text-muted d-block">Guardian Phone</small>
+                <span class="fw-semibold">{{ student.guardian_phone or '-' }}</span>
+            </div>
+        </div>
+
+        <!-- Room Information Card -->
+        <div class="hms-card p-4">
+            <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                <i class="fa-solid fa-door-open text-warning me-2"></i>Room Assignment
+            </h6>
+            {% if student.room_id %}
+                <div class="mb-2">
+                    <small class="text-muted d-block">Assigned Room</small>
+                    <span class="fw-bold fs-5 text-primary">Room {{ student.room_number }}</span>
+                    <span class="badge bg-light text-dark border ms-2">Floor {{ student.floor }}</span>
+                </div>
+                <div class="mb-2">
+                    <small class="text-muted d-block">Room Type</small>
+                    <span class="fw-semibold">{{ student.room_type }} Room</span>
+                </div>
+                <div class="mb-2">
+                    <small class="text-muted d-block">Monthly Rent</small>
+                    <span class="fw-bold text-success">{{ student.fee_per_month | format_currency }}</span>
+                </div>
+                <div>
+                    <a href="{{ url_for('room_detail', room_id=student.room_id) }}" class="btn btn-sm btn-outline-primary w-100 rounded-pill mt-2">
+                        View Room Details & Roommates
+                    </a>
+                </div>
+            {% else %}
+                <div class="text-muted text-center py-3">
+                    <i class="fa-solid fa-bed fs-4 d-block mb-1"></i>
+                    No room currently assigned.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Right Column: Tabs (Fees, Complaints, Passes, Visitors) -->
+    <div class="col-lg-8">
+        <div class="hms-card overflow-hidden">
+            <div class="p-3 bg-light border-bottom">
+                <ul class="nav nav-pills" id="studentTab" role="tablist">
+                    <li class="nav-item">
+                        <button class="nav-link active rounded-pill px-3 py-1 fw-semibold small" id="fees-tab" data-bs-toggle="tab" data-bs-target="#fees-pane">
+                            <i class="fa-solid fa-receipt me-1"></i> Fees & Payments ({{ fees|length }})
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link rounded-pill px-3 py-1 fw-semibold small" id="complaints-tab" data-bs-toggle="tab" data-bs-target="#complaints-pane">
+                            <i class="fa-solid fa-screwdriver-wrench me-1"></i> Complaints ({{ complaints|length }})
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link rounded-pill px-3 py-1 fw-semibold small" id="passes-tab" data-bs-toggle="tab" data-bs-target="#passes-pane">
+                            <i class="fa-solid fa-person-walking-arrow-right me-1"></i> Gate Passes ({{ gate_passes|length }})
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link rounded-pill px-3 py-1 fw-semibold small" id="visitors-tab" data-bs-toggle="tab" data-bs-target="#visitors-pane">
+                            <i class="fa-solid fa-users me-1"></i> Visitors ({{ visitors|length }})
+                        </button>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="tab-content p-4" id="studentTabContent">
+                <!-- Fees Tab -->
+                <div class="tab-pane fade show active" id="fees-pane">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold mb-0">Fee Invoices & Payment Ledger</h6>
+                        <button class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addFeeModal">
+                            <i class="fa-solid fa-plus me-1"></i> Create Invoice
+                        </button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-custom align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Fee Type</th>
+                                    <th>Amount</th>
+                                    <th>Due Date</th>
+                                    <th>Status</th>
+                                    <th>Paid Info</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for f in fees %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold">{{ f.fee_type }}</div>
+                                        <small class="text-muted">{{ f.notes or '-' }}</small>
+                                    </td>
+                                    <td class="fw-bold">{{ f.amount | format_currency }}</td>
+                                    <td>{{ f.due_date | format_date }}</td>
+                                    <td>
+                                        {% if f.status == 'Paid' %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Paid</span>
+                                        {% elif f.status == 'Pending' %}
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1">Pending</span>
+                                        {% else %}
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">Overdue</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if f.status == 'Paid' %}
+                                            <div class="small fw-semibold text-dark">{{ f.payment_mode }} &bull; {{ f.paid_date | format_date }}</div>
+                                            <small class="text-muted font-monospace">{{ f.transaction_ref }}</small>
+                                        {% else %}
+                                            <span class="text-muted small">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="btn-group">
+                                            {% if f.status != 'Paid' %}
+                                                <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#payFeeModal{{ f.id }}" title="Record Payment">
+                                                    <i class="fa-solid fa-check me-1"></i>Pay
+                                                </button>
+                                            {% else %}
+                                                <a href="{{ url_for('fee_receipt', fee_id=f.id) }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="View / Print Receipt">
+                                                    <i class="fa-solid fa-print"></i>
+                                                </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- Pay Modal for this fee -->
+                                <div class="modal fade" id="payFeeModal{{ f.id }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-sm">
+                                        <div class="modal-content">
+                                            <form method="POST" action="{{ url_for('pay_fee', fee_id=f.id) }}">
+                                                <div class="modal-header">
+                                                    <h6 class="modal-title fw-bold">Record Payment: {{ f.amount | format_currency }}</h6>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="mb-3">
+                                                        <label class="form-label small fw-semibold">Payment Mode</label>
+                                                        <select name="payment_mode" class="form-select">
+                                                            <option value="UPI">UPI</option>
+                                                            <option value="Cash">Cash</option>
+                                                            <option value="Net Banking">Net Banking</option>
+                                                            <option value="Debit Card">Debit Card</option>
+                                                            <option value="Credit Card">Credit Card</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label small fw-semibold">Transaction Reference / UTR</label>
+                                                        <input type="text" name="transaction_ref" class="form-control" placeholder="e.g. UPI/2026/83918">
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label small fw-semibold">Paid Date</label>
+                                                        <input type="date" name="paid_date" class="form-control">
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="submit" class="btn btn-success btn-sm w-100">Confirm Payment</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">No fee records found for this student.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Complaints Tab -->
+                <div class="tab-pane fade" id="complaints-pane">
+                    <h6 class="fw-bold mb-3">Complaints & Tickets Lodged</h6>
+                    <div class="table-responsive">
+                        <table class="table table-custom align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Subject</th>
+                                    <th>Category</th>
+                                    <th>Priority</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for c in complaints %}
+                                <tr>
+                                    <td class="fw-semibold">{{ c.title }}</td>
+                                    <td><span class="badge bg-light text-secondary border">{{ c.category }}</span></td>
+                                    <td>
+                                        {% if c.priority == 'Urgent' %}<span class="badge bg-danger">Urgent</span>
+                                        {% elif c.priority == 'High' %}<span class="badge bg-warning text-dark">High</span>
+                                        {% else %}<span class="badge bg-secondary-subtle text-dark">{{ c.priority }}</span>{% endif %}
+                                    </td>
+                                    <td>{{ c.created_at | format_date }}</td>
+                                    <td>
+                                        {% if c.status == 'Resolved' %}<span class="badge bg-success-subtle text-success">Resolved</span>
+                                        {% elif c.status == 'In Progress' %}<span class="badge bg-info-subtle text-info-emphasis">In Progress</span>
+                                        {% else %}<span class="badge bg-danger-subtle text-danger">Open</span>{% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">No complaints filed by this student.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Gate Passes Tab -->
+                <div class="tab-pane fade" id="passes-pane">
+                    <h6 class="fw-bold mb-3">Gate Pass / Leave Requests</h6>
+                    <div class="table-responsive">
+                        <table class="table table-custom align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Destination</th>
+                                    <th>Leave Period</th>
+                                    <th>Reason</th>
+                                    <th>Status</th>
+                                    <th>Approved By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for g in gate_passes %}
+                                <tr>
+                                    <td class="fw-semibold">{{ g.destination }}</td>
+                                    <td>{{ g.leave_date | format_datetime }} to {{ g.return_date | format_datetime }}</td>
+                                    <td class="small text-muted">{{ g.reason }}</td>
+                                    <td>
+                                        {% if g.status == 'Approved' %}<span class="badge bg-success-subtle text-success">Approved</span>
+                                        {% elif g.status == 'Pending' %}<span class="badge bg-warning-subtle text-warning-emphasis">Pending</span>
+                                        {% else %}<span class="badge bg-secondary-subtle text-secondary">{{ g.status }}</span>{% endif %}
+                                    </td>
+                                    <td class="small">{{ g.approved_by or '-' }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">No gate passes recorded.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Visitors Tab -->
+                <div class="tab-pane fade" id="visitors-pane">
+                    <h6 class="fw-bold mb-3">Visitor Logs</h6>
+                    <div class="table-responsive">
+                        <table class="table table-custom align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Visitor</th>
+                                    <th>Phone</th>
+                                    <th>Relation</th>
+                                    <th>In-Time</th>
+                                    <th>Out-Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for v in visitors %}
+                                <tr>
+                                    <td class="fw-semibold">{{ v.visitor_name }}</td>
+                                    <td>{{ v.visitor_phone }}</td>
+                                    <td>{{ v.relation }}</td>
+                                    <td>{{ v.in_time | format_datetime }}</td>
+                                    <td>{{ v.out_time | format_datetime if v.out_time else 'Still Inside' }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">No visitors recorded for this resident.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Edit Student Profile -->
+<div class="modal fade" id="editStudentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('edit_student', student_id=student.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Edit Student Profile: {{ student.full_name }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Full Name</label>
+                            <input type="text" name="full_name" class="form-control" value="{{ student.full_name }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Phone Number</label>
+                            <input type="tel" name="phone" class="form-control" value="{{ student.phone }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Email Address</label>
+                            <input type="email" name="email" class="form-control" value="{{ student.email or '' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Gender</label>
+                            <select name="gender" class="form-select">
+                                <option value="Male" {% if student.gender == 'Male' %}selected{% endif %}>Male</option>
+                                <option value="Female" {% if student.gender == 'Female' %}selected{% endif %}>Female</option>
+                                <option value="Other" {% if student.gender == 'Other' %}selected{% endif %}>Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Blood Group</label>
+                            <input type="text" name="blood_group" class="form-control" value="{{ student.blood_group or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Date of Birth</label>
+                            <input type="date" name="dob" class="form-control" value="{{ student.dob or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Resident Status</label>
+                            <select name="status" class="form-select">
+                                <option value="Active" {% if student.status == 'Active' %}selected{% endif %}>Active</option>
+                                <option value="Checked-Out" {% if student.status == 'Checked-Out' %}selected{% endif %}>Checked-Out</option>
+                                <option value="Suspended" {% if student.status == 'Suspended' %}selected{% endif %}>Suspended</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Address</label>
+                            <textarea name="address" class="form-control" rows="2">{{ student.address or '' }}</textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Guardian Name</label>
+                            <input type="text" name="guardian_name" class="form-control" value="{{ student.guardian_name or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Guardian Phone</label>
+                            <input type="tel" name="guardian_phone" class="form-control" value="{{ student.guardian_phone or '' }}">
+                        </div>
+                        <div class="col-12 pt-2 border-top">
+                            <label class="form-label small fw-semibold">Hostel Room Allocation / Transfer</label>
+                            <select name="room_id" class="form-select">
+                                <option value="">No Room Assigned</option>
+                                {% for r in available_rooms %}
+                                    <option value="{{ r.id }}" {% if student.room_id == r.id %}selected{% endif %}>
+                                        Room {{ r.room_number }} (Floor {{ r.floor }} &bull; {{ r.room_type }} &bull; {{ r.fee_per_month | format_currency }}/mo)
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Create New Fee Invoice -->
+<div class="modal fade" id="addFeeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('add_fee') }}">
+                <input type="hidden" name="student_id" value="{{ student.id }}">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Create Fee Invoice for {{ student.full_name }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Fee Type</label>
+                            <select name="fee_type" class="form-select">
+                                <option value="Hostel Rent">Hostel Rent</option>
+                                <option value="Mess Fee">Mess Fee</option>
+                                <option value="Security Deposit">Security Deposit</option>
+                                <option value="Maintenance">Maintenance</option>
+                                <option value="Utility">Utility</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Amount (₹)</label>
+                            <input type="number" step="0.01" name="amount" class="form-control" value="{{ student.fee_per_month or 6000.00 }}" required>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label small fw-semibold">Due Date</label>
+                            <input type="date" name="due_date" class="form-control" required>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label small fw-semibold">Description / Notes</label>
+                            <input type="text" name="notes" class="form-control" placeholder="e.g. May 2026 Room Rent">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Generate Invoice</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Check-out Resident -->
+<div class="modal fade" id="checkoutModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('checkout_student', student_id=student.id) }}">
+                <div class="modal-body text-center p-4">
+                    <i class="fa-solid fa-person-walking-dashed-line-arrow-right text-warning fs-1 mb-3"></i>
+                    <h6 class="fw-bold mb-2">Check-Out Resident?</h6>
+                    <p class="small text-muted mb-4">
+                        This will release Room {{ student.room_number or 'N/A' }} bed back into available inventory and mark {{ student.full_name }} as Checked-Out.
+                    </p>
+                    <div class="d-flex justify-content-center gap-2">
+                        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-danger btn-sm">Confirm Check-Out</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

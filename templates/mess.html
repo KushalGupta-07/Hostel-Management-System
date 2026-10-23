@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Hostel Mess & Weekly Meal Schedule{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h4 class="fw-bold mb-1">Weekly Mess & Dining Menu</h4>
+        <p class="text-muted small mb-0">Daily 4-course meal planning (Breakfast, Lunch, Evening Snacks, Dinner).</p>
+    </div>
+    <div>
+        <button class="btn btn-primary rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#editMenuModal">
+            <i class="fa-solid fa-pen-to-square me-2"></i>Update Meal Menu
+        </button>
+    </div>
+</div>
+
+<!-- Weekly Schedule Cards -->
+<div class="row g-4">
+    {% for day in days %}
+    <div class="col-xl-6">
+        <div class="hms-card p-4 h-100">
+            <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                <h5 class="fw-bold text-dark mb-0">
+                    <i class="fa-regular fa-calendar-check text-primary me-2"></i>{{ day }}
+                </h5>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">4 Meals</span>
+            </div>
+
+            <div class="row g-3">
+                <!-- Breakfast -->
+                <div class="col-sm-6">
+                    <div class="p-3 bg-light rounded-3 h-100">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <i class="fa-solid fa-mug-saucer text-warning"></i>
+                            <span class="fw-bold text-dark small text-uppercase">Breakfast</span>
+                            <small class="text-muted ms-auto" style="font-size: 0.7rem;">7:30 - 9:30 AM</small>
+                        </div>
+                        <p class="small text-muted mb-0">
+                            {{ schedule[day]['Breakfast']['menu_items'] if schedule[day] and schedule[day]['Breakfast'] else 'Standard Breakfast' }}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Lunch -->
+                <div class="col-sm-6">
+                    <div class="p-3 bg-light rounded-3 h-100">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <i class="fa-solid fa-bowl-rice text-success"></i>
+                            <span class="fw-bold text-dark small text-uppercase">Lunch</span>
+                            <small class="text-muted ms-auto" style="font-size: 0.7rem;">12:30 - 2:30 PM</small>
+                        </div>
+                        <p class="small text-muted mb-0">
+                            {{ schedule[day]['Lunch']['menu_items'] if schedule[day] and schedule[day]['Lunch'] else 'Standard Lunch' }}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Snacks -->
+                <div class="col-sm-6">
+                    <div class="p-3 bg-light rounded-3 h-100">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <i class="fa-solid fa-cookie-bite text-info"></i>
+                            <span class="fw-bold text-dark small text-uppercase">Evening Snacks</span>
+                            <small class="text-muted ms-auto" style="font-size: 0.7rem;">5:00 - 6:00 PM</small>
+                        </div>
+                        <p class="small text-muted mb-0">
+                            {{ schedule[day]['Snacks']['menu_items'] if schedule[day] and schedule[day]['Snacks'] else 'Tea & Biscuits' }}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Dinner -->
+                <div class="col-sm-6">
+                    <div class="p-3 bg-light rounded-3 h-100">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <i class="fa-solid fa-utensils text-danger"></i>
+                            <span class="fw-bold text-dark small text-uppercase">Dinner</span>
+                            <small class="text-muted ms-auto" style="font-size: 0.7rem;">8:00 - 10:00 PM</small>
+                        </div>
+                        <p class="small text-muted mb-0">
+                            {{ schedule[day]['Dinner']['menu_items'] if schedule[day] and schedule[day]['Dinner'] else 'Standard Dinner' }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Modal: Edit Menu -->
+<div class="modal fade" id="editMenuModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('update_mess_meal') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Update Meal Menu</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Day of Week</label>
+                            <select name="day_of_week" class="form-select" required>
+                                {% for day in days %}
+                                    <option value="{{ day }}">{{ day }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Meal Type</label>
+                            <select name="meal_type" class="form-select" required>
+                                {% for mt in meal_types %}
+                                    <option value="{{ mt }}">{{ mt }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Menu Dishes & Items</label>
+                            <textarea name="menu_items" class="form-control" rows="3" placeholder="e.g. Paneer Butter Masala, Dal Makhani, Steamed Rice, Roti, Gulab Jamun" required></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary px-4">Save Menu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

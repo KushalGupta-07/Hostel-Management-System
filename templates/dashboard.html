@@ -1,0 +1,354 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Hostel Overview & Dashboard{% endblock %}
+
+{% block content %}
+<!-- Top Metrics Row -->
+<div class="row g-3 mb-4">
+    <!-- Card 1: Rooms & Beds -->
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="fa-solid fa-bed"></i>
+            </div>
+            <div>
+                <div class="stat-title">Bed Occupancy</div>
+                <div class="stat-value">{{ room_stats.occupied_beds }} / {{ room_stats.total_capacity }}</div>
+                <div class="small text-muted mt-1">
+                    <span class="text-success fw-semibold">{{ room_stats.available_beds }} beds free</span> &bull; {{ room_stats.total_rooms }} rooms
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 2: Active Students -->
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="fa-solid fa-user-graduate"></i>
+            </div>
+            <div>
+                <div class="stat-title">Active Residents</div>
+                <div class="stat-value">{{ student_stats.active_students }}</div>
+                <div class="small text-muted mt-1">
+                    <span>{{ student_stats.checked_out_students }} checked out</span> &bull; total {{ student_stats.total_students }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 3: Fee Revenue -->
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon cyan">
+                <i class="fa-solid fa-indian-rupee-sign"></i>
+            </div>
+            <div>
+                <div class="stat-title">Fees Collected</div>
+                <div class="stat-value">{{ fee_stats.total_paid | format_currency }}</div>
+                <div class="small mt-1">
+                    <span class="text-danger fw-semibold">{{ (fee_stats.total_pending + fee_stats.total_overdue) | format_currency }} pending</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 4: Complaints -->
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="fa-solid fa-screwdriver-wrench"></i>
+            </div>
+            <div>
+                <div class="stat-title">Pending Tickets</div>
+                <div class="stat-value">{{ complaint_stats.open_complaints + complaint_stats.in_progress_complaints }}</div>
+                <div class="small text-muted mt-1">
+                    <span class="text-success fw-semibold">{{ complaint_stats.resolved_complaints }} resolved</span> &bull; {{ complaint_stats.open_complaints }} open
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Action Shortcuts -->
+<div class="d-flex flex-wrap gap-2 mb-4">
+    <a href="{{ url_for('students_list') }}" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">
+        <i class="fa-solid fa-user-plus me-1"></i> Register Student
+    </a>
+    <a href="{{ url_for('rooms_list') }}" class="btn btn-outline-primary btn-sm rounded-pill px-3 bg-white shadow-sm">
+        <i class="fa-solid fa-plus me-1"></i> Add Room
+    </a>
+    <a href="{{ url_for('fees_list') }}" class="btn btn-outline-success btn-sm rounded-pill px-3 bg-white shadow-sm">
+        <i class="fa-solid fa-receipt me-1"></i> Collect Fee
+    </a>
+    <a href="{{ url_for('complaints_list') }}" class="btn btn-outline-warning btn-sm rounded-pill px-3 bg-white shadow-sm">
+        <i class="fa-solid fa-triangle-exclamation me-1"></i> Lodge Complaint
+    </a>
+    <a href="{{ url_for('visitors_list') }}" class="btn btn-outline-dark btn-sm rounded-pill px-3 bg-white shadow-sm">
+        <i class="fa-solid fa-id-badge me-1"></i> Log Visitor
+    </a>
+</div>
+
+<!-- Charts & Floor Breakdown Row -->
+<div class="row g-4 mb-4">
+    <!-- Chart Column -->
+    <div class="col-lg-4">
+        <div class="hms-card p-4 h-100">
+            <h6 class="fw-bold mb-3 text-dark d-flex align-items-center justify-content-between">
+                <span>Occupancy Ratio</span>
+                <i class="fa-solid fa-chart-donut text-muted"></i>
+            </h6>
+            <div class="position-relative" style="height: 220px;">
+                <canvas id="occupancyChart"></canvas>
+            </div>
+            <div class="d-flex justify-content-around text-center mt-3 pt-3 border-top">
+                <div>
+                    <span class="d-block fw-bold text-primary">{{ room_stats.occupied_beds }}</span>
+                    <small class="text-muted">Occupied</small>
+                </div>
+                <div>
+                    <span class="d-block fw-bold text-success">{{ room_stats.available_beds }}</span>
+                    <small class="text-muted">Available</small>
+                </div>
+                <div>
+                    <span class="d-block fw-bold text-warning">{{ room_stats.maintenance_rooms }}</span>
+                    <small class="text-muted">Maintenance</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floor-wise breakdown -->
+    <div class="col-lg-8">
+        <div class="hms-card p-4 h-100">
+            <h6 class="fw-bold mb-3 text-dark d-flex align-items-center justify-content-between">
+                <span>Floor-wise Capacity Overview</span>
+                <span class="badge bg-light text-muted border">Floors</span>
+            </h6>
+            <div class="table-responsive">
+                <table class="table table-custom align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Floor</th>
+                            <th>Rooms</th>
+                            <th>Total Beds</th>
+                            <th>Occupied</th>
+                            <th>Occupancy Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for f in floor_stats %}
+                        {% set pct = (f.occupied / f.total_capacity * 100)|round(1) if f.total_capacity > 0 else 0 %}
+                        <tr>
+                            <td class="fw-semibold">
+                                <span class="badge bg-secondary-subtle text-secondary px-2 py-1">Floor {{ f.floor }}</span>
+                            </td>
+                            <td>{{ f.rooms_count }} rooms</td>
+                            <td>{{ f.total_capacity }} beds</td>
+                            <td><span class="fw-bold text-primary">{{ f.occupied }}</span></td>
+                            <td style="width: 35%;">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="progress flex-grow-1 progress-sm">
+                                        <div class="progress-bar {% if pct >= 90 %}bg-danger{% elif pct >= 70 %}bg-warning{% else %}bg-primary{% endif %}" 
+                                             role="progressbar" style="width: {{ pct }}%"></div>
+                                    </div>
+                                    <span class="small fw-semibold text-muted" style="min-width: 45px;">{{ pct }}%</span>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-3">No floor data available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Active Notices & Recent Complaints Row -->
+<div class="row g-4 mb-4">
+    <!-- Notice Board -->
+    <div class="col-lg-5">
+        <div class="hms-card p-4 h-100">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h6 class="fw-bold mb-0 text-dark">
+                    <i class="fa-solid fa-bullhorn text-primary me-2"></i>Hostel Notice Board
+                </h6>
+                <a href="{{ url_for('staff_notices') }}" class="btn btn-sm btn-link text-decoration-none p-0">View All</a>
+            </div>
+
+            {% for n in recent_notices %}
+                <div class="p-3 mb-2 rounded-3 border-start border-4 {% if n.priority == 'Urgent' %}border-danger bg-danger-subtle{% elif n.priority == 'Important' %}border-warning bg-warning-subtle{% else %}border-primary bg-light{% endif %}">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="fw-semibold text-dark">{{ n.title }}</span>
+                        <span class="badge {% if n.priority == 'Urgent' %}bg-danger{% elif n.priority == 'Important' %}bg-warning text-dark{% else %}bg-primary{% endif %}">
+                            {{ n.priority }}
+                        </span>
+                    </div>
+                    <p class="small text-muted mb-1">{{ n.content }}</p>
+                    <small class="text-secondary" style="font-size: 0.75rem;">
+                        <i class="fa-regular fa-clock me-1"></i>{{ n.created_at | format_date }}
+                    </small>
+                </div>
+            {% else %}
+                <p class="text-muted small">No active notices.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Recent Complaints Desk -->
+    <div class="col-lg-7">
+        <div class="hms-card p-4 h-100">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h6 class="fw-bold mb-0 text-dark">
+                    <i class="fa-solid fa-ticket text-warning me-2"></i>Recent Complaints Desk
+                </h6>
+                <a href="{{ url_for('complaints_list') }}" class="btn btn-sm btn-link text-decoration-none p-0">View Tickets</a>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-custom align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Student & Room</th>
+                            <th>Issue</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in recent_complaints %}
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">{{ c.student_name or 'General' }}</div>
+                                <small class="text-muted">Room {{ c.room_number or 'N/A' }}</small>
+                            </td>
+                            <td>
+                                <div class="text-truncate" style="max-width: 220px;" title="{{ c.title }}">{{ c.title }}</div>
+                                <small class="badge bg-light text-secondary border">{{ c.category }}</small>
+                            </td>
+                            <td>
+                                {% if c.priority == 'Urgent' %}
+                                    <span class="badge bg-danger">Urgent</span>
+                                {% elif c.priority == 'High' %}
+                                    <span class="badge bg-warning text-dark">High</span>
+                                {% else %}
+                                    <span class="badge bg-secondary-subtle text-dark">{{ c.priority }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if c.status == 'Resolved' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle">Resolved</span>
+                                {% elif c.status == 'In Progress' %}
+                                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle">In Progress</span>
+                                {% else %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Open</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-3">No active complaints found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Visitors Today Section -->
+<div class="row g-4">
+    <div class="col-12">
+        <div class="hms-card p-4">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h6 class="fw-bold mb-0 text-dark">
+                    <i class="fa-solid fa-users-viewfinder text-primary me-2"></i>Visitors Log
+                </h6>
+                <a href="{{ url_for('visitors_list') }}" class="btn btn-sm btn-outline-primary rounded-pill px-3">Open Gate Desk</a>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-custom align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Visitor Name</th>
+                            <th>Contact</th>
+                            <th>Visiting Student</th>
+                            <th>Room</th>
+                            <th>Relation</th>
+                            <th>In-Time</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in visitors_today %}
+                        <tr>
+                            <td class="fw-semibold">{{ v.visitor_name }}</td>
+                            <td>{{ v.visitor_phone }}</td>
+                            <td>{{ v.student_name }}</td>
+                            <td><span class="badge bg-light text-dark border">Room {{ v.room_number }}</span></td>
+                            <td>{{ v.relation }}</td>
+                            <td>{{ v.in_time | format_datetime }}</td>
+                            <td>
+                                {% if v.out_time %}
+                                    <span class="badge bg-secondary-subtle text-secondary">Exited: {{ v.out_time | format_datetime }}</span>
+                                {% else %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                        <i class="fa-solid fa-door-open me-1"></i>Inside Hostel
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-3">No recent visitors logged.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const ctx = document.getElementById('occupancyChart').getContext('2d');
+    const occupied = {{ room_stats.occupied_beds | default(0) }};
+    const available = {{ room_stats.available_beds | default(0) }};
+    
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Occupied Beds', 'Available Beds'],
+            datasets: [{
+                data: [occupied, available],
+                backgroundColor: ['#2563eb', '#10b981'],
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '72%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 12,
+                        padding: 14,
+                        font: { family: 'Inter', size: 12 }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

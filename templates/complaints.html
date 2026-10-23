@@ -1,0 +1,272 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Complaints & Maintenance Desk{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h4 class="fw-bold mb-1">Hostel Complaints & Maintenance Helpdesk</h4>
+        <p class="text-muted small mb-0">Track student maintenance issues, assign staff, and log resolution status.</p>
+    </div>
+    <div>
+        <button class="btn btn-warning text-dark fw-semibold rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#newComplaintModal">
+            <i class="fa-solid fa-plus me-2"></i>Lodge Complaint
+        </button>
+    </div>
+</div>
+
+<!-- Filters Bar -->
+<div class="hms-card p-3 mb-4">
+    <form method="GET" action="{{ url_for('complaints_list') }}" class="row g-2 align-items-center">
+        <div class="col-md-3">
+            <select name="status" class="form-select">
+                <option value="All">All Statuses</option>
+                <option value="Open" {% if current_status == 'Open' %}selected{% endif %}>Open</option>
+                <option value="In Progress" {% if current_status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                <option value="Resolved" {% if current_status == 'Resolved' %}selected{% endif %}>Resolved</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select name="priority" class="form-select">
+                <option value="All">All Priorities</option>
+                <option value="Urgent" {% if current_priority == 'Urgent' %}selected{% endif %}>Urgent</option>
+                <option value="High" {% if current_priority == 'High' %}selected{% endif %}>High</option>
+                <option value="Medium" {% if current_priority == 'Medium' %}selected{% endif %}>Medium</option>
+                <option value="Low" {% if current_priority == 'Low' %}selected{% endif %}>Low</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <select name="category" class="form-select">
+                <option value="All">All Categories</option>
+                <option value="Electrical" {% if current_category == 'Electrical' %}selected{% endif %}>Electrical</option>
+                <option value="Plumbing" {% if current_category == 'Plumbing' %}selected{% endif %}>Plumbing</option>
+                <option value="Wi-Fi / Internet" {% if current_category == 'Wi-Fi / Internet' %}selected{% endif %}>Wi-Fi / Internet</option>
+                <option value="Furniture" {% if current_category == 'Furniture' %}selected{% endif %}>Furniture</option>
+                <option value="Cleaning / Housekeeping" {% if current_category == 'Cleaning / Housekeeping' %}selected{% endif %}>Cleaning / Housekeeping</option>
+                <option value="Mess / Food" {% if current_category == 'Mess / Food' %}selected{% endif %}>Mess / Food</option>
+                <option value="Other" {% if current_category == 'Other' %}selected{% endif %}>Other</option>
+            </select>
+        </div>
+        <div class="col-md-2 d-flex gap-2">
+            <button type="submit" class="btn btn-secondary flex-grow-1">Filter</button>
+            <a href="{{ url_for('complaints_list') }}" class="btn btn-outline-secondary" title="Reset Filters"><i class="fa-solid fa-rotate-left"></i></a>
+        </div>
+    </form>
+</div>
+
+<!-- Complaints Table -->
+<div class="hms-card overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-custom align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Ticket #</th>
+                    <th>Issue & Description</th>
+                    <th>Category</th>
+                    <th>Resident & Room</th>
+                    <th>Priority</th>
+                    <th>Logged At</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in complaints %}
+                <tr>
+                    <td>
+                        <span class="badge bg-light text-dark border font-monospace">TKT-{{ "%04d" % c.id }}</span>
+                    </td>
+                    <td>
+                        <div class="fw-bold text-dark">{{ c.title }}</div>
+                        <p class="small text-muted mb-0 text-truncate" style="max-width: 250px;" title="{{ c.description }}">
+                            {{ c.description }}
+                        </p>
+                        {% if c.resolution_notes %}
+                            <div class="small text-success mt-1">
+                                <i class="fa-solid fa-wrench me-1"></i><strong>Fix:</strong> {{ c.resolution_notes }}
+                            </div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge bg-secondary-subtle text-secondary px-2 py-1">{{ c.category }}</span>
+                    </td>
+                    <td>
+                        {% if c.student_name %}
+                            <div class="fw-semibold text-dark">{{ c.student_name }}</div>
+                            <small class="text-muted">Room {{ c.room_number or 'N/A' }}</small>
+                        {% else %}
+                            <span class="text-muted">General / Hostel</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if c.priority == 'Urgent' %}
+                            <span class="badge bg-danger px-2 py-1">Urgent</span>
+                        {% elif c.priority == 'High' %}
+                            <span class="badge bg-warning text-dark px-2 py-1">High</span>
+                        {% elif c.priority == 'Medium' %}
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">Medium</span>
+                        {% else %}
+                            <span class="badge bg-light text-muted border px-2 py-1">Low</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <small>{{ c.created_at | format_datetime }}</small>
+                    </td>
+                    <td>
+                        {% if c.status == 'Resolved' %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1 rounded-pill">Resolved</span>
+                            {% if c.resolved_at %}
+                                <div class="small text-muted" style="font-size: 0.75rem;">{{ c.resolved_at | format_date }}</div>
+                            {% endif %}
+                        {% elif c.status == 'In Progress' %}
+                            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle px-3 py-1 rounded-pill">In Progress</span>
+                        {% else %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-1 rounded-pill">Open</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#updateComplaintModal{{ c.id }}" title="Update Ticket Status">
+                                <i class="fa-solid fa-pen-to-square"></i> Update
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteComplaintModal{{ c.id }}" title="Delete Ticket">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+
+                <!-- Update Status Modal -->
+                <div class="modal fade" id="updateComplaintModal{{ c.id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form method="POST" action="{{ url_for('update_complaint_status', complaint_id=c.id) }}">
+                                <div class="modal-header">
+                                    <h5 class="modal-title fw-bold">Update Ticket TKT-{{ "%04d" % c.id }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="p-3 bg-light rounded-3 mb-3">
+                                        <div class="fw-semibold text-dark">{{ c.title }}</div>
+                                        <div class="small text-muted">{{ c.description }}</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Status</label>
+                                        <select name="status" class="form-select">
+                                            <option value="Open" {% if c.status == 'Open' %}selected{% endif %}>Open</option>
+                                            <option value="In Progress" {% if c.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                            <option value="Resolved" {% if c.status == 'Resolved' %}selected{% endif %}>Resolved</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold">Maintenance / Resolution Remarks</label>
+                                        <textarea name="resolution_notes" class="form-control" rows="3" placeholder="Describe actions taken by staff/technician...">{{ c.resolution_notes or '' }}</textarea>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">Save Ticket Status</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Delete Ticket Modal -->
+                <div class="modal fade" id="deleteComplaintModal{{ c.id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-sm">
+                        <div class="modal-content">
+                            <form method="POST" action="{{ url_for('delete_complaint', complaint_id=c.id) }}">
+                                <div class="modal-body text-center p-4">
+                                    <i class="fa-solid fa-triangle-exclamation text-danger fs-1 mb-3"></i>
+                                    <h6 class="fw-bold mb-2">Delete Ticket?</h6>
+                                    <p class="small text-muted mb-4">Are you sure you want to remove ticket TKT-{{ "%04d" % c.id }}?</p>
+                                    <div class="d-flex justify-content-center gap-2">
+                                        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                {% else %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">No complaints matching the selected filters.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal: New Complaint -->
+<div class="modal fade" id="newComplaintModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('add_complaint') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Lodge Maintenance Ticket</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Reporting Resident</label>
+                            <select name="student_id" class="form-select">
+                                <option value="">General Hostel Complaint</option>
+                                {% for s in students %}
+                                    <option value="{{ s.id }}">{{ s.full_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Room Involved</label>
+                            <select name="room_id" class="form-select">
+                                <option value="">Auto-detect from student / General</option>
+                                {% for r in rooms %}
+                                    <option value="{{ r.id }}">Room {{ r.room_number }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Category *</label>
+                            <select name="category" class="form-select" required>
+                                <option value="Electrical">Electrical (Lights, Fans, Sockets, AC)</option>
+                                <option value="Plumbing">Plumbing (Taps, Showers, Drainage, Leakage)</option>
+                                <option value="Wi-Fi / Internet">Wi-Fi / Internet Connectivity</option>
+                                <option value="Furniture">Furniture (Bed, Study Table, Almirah)</option>
+                                <option value="Cleaning / Housekeeping">Cleaning / Housekeeping</option>
+                                <option value="Mess / Food">Mess / Food Quality</option>
+                                <option value="Other">Other Issues</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Priority Level *</label>
+                            <select name="priority" class="form-select" required>
+                                <option value="Low">Low (Can take 2-3 days)</option>
+                                <option value="Medium" selected>Medium (Standard 24h)</option>
+                                <option value="High">High (Same day resolution)</option>
+                                <option value="Urgent">Urgent (Immediate attention)</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Issue Title *</label>
+                            <input type="text" name="title" class="form-control" placeholder="Brief summary of the defect" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Detailed Description *</label>
+                            <textarea name="description" class="form-control" rows="3" placeholder="Provide details, specific location in room, symptoms..." required></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning px-4">Submit Complaint</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
